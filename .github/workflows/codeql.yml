@@ -12,13 +12,10 @@
 name: "CodeQL Advanced"
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  release:
+    types: [published, edited]
   schedule:
     - cron: '40 10 * * 2'
-
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
