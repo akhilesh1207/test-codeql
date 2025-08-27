@@ -69,6 +69,18 @@ app.get('/calc', (req, res) => {
   }
 });
 
+
+app.get('/calc-one', (req, res) => {
+  const exp = req.query.expr;
+  // ⚠️ Code Injection vulnerability
+  try {
+    const result = eval(exp);
+    res.send(`Result: ${result}`);
+  } catch (error) {
+    res.send('Error in expression');
+  }
+});
+
 app.get('/api/hello', (req, res) => {
   res.json({
     message: 'Hello from Express API!',
