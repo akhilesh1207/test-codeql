@@ -81,6 +81,17 @@ app.get('/calc-one', (req, res) => {
   }
 });
 
+app.get('/user', (req, res) => {
+  const userId = req.query.id;
+  // ⚠️ SQL Injection vulnerability
+  const query = `SELECT * FROM users WHERE id = ${userId}`;
+  
+  db.query(query, (error, results) => {
+    if (error) throw error;
+    res.json(results);
+  });
+});
+
 app.get('/api/hello', (req, res) => {
   res.json({
     message: 'Hello from Express API!',
