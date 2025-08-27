@@ -92,6 +92,12 @@ app.get('/user', (req, res) => {
   });
 });
 
+app.get('/search', (req, res) => {
+  const searchTerm = req.query.q;
+  // ⚠️ Reflected XSS vulnerability
+  res.send(`<h1>Search Results for: ${searchTerm}</h1>`);
+});
+
 app.get('/api/hello', (req, res) => {
   res.json({
     message: 'Hello from Express API!',
