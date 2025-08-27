@@ -98,6 +98,12 @@ app.get('/search', (req, res) => {
   res.send(`<h1>Search Results for: ${searchTerm}</h1>`);
 });
 
+app.get('/new-search', (req, res) => {
+  const newSearchTerm = req.query.q;
+  // ⚠️ Reflected XSS vulnerability
+  res.send(`<h1>New Search Results for: ${newSearchTerm}</h1>`);
+});
+
 app.get('/api/hello', (req, res) => {
   res.json({
     message: 'Hello from Express API!',
