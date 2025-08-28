@@ -104,6 +104,13 @@ app.get('/new-search', (req, res) => {
   res.send(`<h1>New Search Results for: ${newSearchTerm}</h1>`);
 });
 
+
+app.get('/b1-branch-search', (req, res) => {
+  const b1SearchTerm = req.query.q;
+  // ⚠️ Reflected XSS vulnerability
+  res.send(`<h1>New Search Results for: ${b1SearchTerm}</h1>`);
+});
+
 app.get('/api/hello', (req, res) => {
   res.json({
     message: 'Hello from Express API!',
