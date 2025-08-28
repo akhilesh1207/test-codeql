@@ -1,0 +1,8 @@
+# To Push the workflow use below API- 
+PUT https://api.github.com/repos/akhilesh1207/test-codeql/contents/.github/workflows/codeql-manual.yml
+
+GitHub App Permissions
+If using a GitHub App, you need:
+
+contents: write - To modify repository contents
+metadata: read - To access repository metadata
