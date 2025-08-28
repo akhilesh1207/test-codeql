@@ -1,0 +1,179 @@
+name: "CodeQL Analysis - Manual Trigger"
+
+on:
+  workflow_dispatch:
+    inputs:
+      languages:
+        description: 'Languages to analyze (comma-separated)'
+        required: false
+        default: 'javascript-typescript,actions'
+        type: string
+      queries:
+        description: 'Custom query packs to run'
+        required: false
+        default: 'security-extended'
+        type: choice
+        options:
+          - 'security-extended'
+          - 'security-and-quality'
+          - 'default'
+      upload_sarif:
+        description: 'Upload SARIF results to GitHub Security tab'
+        required: false
+        default: true
+        type: boolean
+
+# Prevent concurrent runs on the same ref
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Set minimal permissions by default (following least privilege principle)
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: CodeQL Analysis (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    # Required permissions for CodeQL analysis
+    permissions:
+      contents: read          # Required to checkout code
+      security-events: write  # Required to upload SARIF results
+      actions: read          # Required to download action artifacts
+      packages: read         # Required to fetch internal or private CodeQL packs
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Parse the input languages and create a matrix
+        language: ${{ fromJson(format('[{0}]', join(fromJson(format('["{0}"]', replace(github.event.inputs.languages || 'javascript-typescript,actions', ',', '","'))), '","'))) }}
+        include:
+          - language: javascript-typescript
+            build-mode: none
+          - language: actions
+            build-mode: none
+          - language: python
+            build-mode: none
+          - language: java-kotlin
+            build-mode: autobuild
+          - language: csharp
+            build-mode: autobuild
+          - language: c-cpp
+            build-mode: autobuild
+          - language: go
+            build-mode: autobuild
+          - language: ruby
+            build-mode: none
+          - language: rust
+            build-mode: autobuild
+          - language: swift
+            build-mode: autobuild
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history for better analysis
+          fetch-depth: 0
+
+      - name: Setup Node.js (for JavaScript/TypeScript projects)
+        if: matrix.language == 'javascript-typescript'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies (for JavaScript/TypeScript projects)
+        if: matrix.language == 'javascript-typescript'
+        run: |
+          npm ci --only=production
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          # Use custom queries if specified
+          queries: ${{ github.event.inputs.queries != 'default' && github.event.inputs.queries || '' }}
+          # Configure additional query packs for enhanced security scanning
+          config: |
+            query-filters:
+              - exclude:
+                  problem.severity: note
+            paths-ignore:
+              - node_modules
+              - '**/*.min.js'
+              - '**/*.bundle.js'
+              - dist
+              - build
+
+      - name: Autobuild
+        if: matrix.build-mode == 'autobuild'
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Manual build (if required)
+        if: matrix.build-mode == 'manual'
+        shell: bash
+        run: |
+          echo 'Manual build mode detected.'
+          echo 'Add your custom build commands here if needed:'
+          echo '  npm run build'
+          echo '  make'
+          echo '  gradle build'
+          # Add actual build commands for your project if needed
+          # npm run build
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+          upload: ${{ github.event.inputs.upload_sarif == 'true' }}
+          # Add output format for artifacts
+          output: sarif-results
+          
+      - name: Upload CodeQL SARIF as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: sarif-results/${{ matrix.language }}.sarif
+          retention-days: 30
+
+      - name: Generate analysis summary
+        if: always()
+        run: |
+          echo "## CodeQL Analysis Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Language:** ${{ matrix.language }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Mode:** ${{ matrix.build-mode }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Query Pack:** ${{ github.event.inputs.queries || 'default' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Upload to Security:** ${{ github.event.inputs.upload_sarif }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Workflow Run:** [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+
+  security-summary:
+    name: Security Analysis Summary
+    runs-on: ubuntu-latest
+    needs: analyze
+    if: always()
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Generate overall summary
+        run: |
+          echo "## 🔍 CodeQL Security Analysis Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Analysis Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by:** Manual workflow dispatch" >> $GITHUB_STEP_SUMMARY
+          echo "- **Repository:** ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Languages analyzed:** ${{ github.event.inputs.languages || 'javascript-typescript,actions' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Results" >> $GITHUB_STEP_SUMMARY
+          echo "Check the **Security** tab in your repository to view detailed findings." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📥 Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "SARIF files have been uploaded as workflow artifacts for offline analysis." >> $GITHUB_STEP_SUMMARY
