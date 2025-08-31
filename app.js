@@ -1,5 +1,4 @@
 const express = require('express');
-const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -70,16 +69,6 @@ app.get('/calc', (req, res) => {
 });
 
 
-app.get('/calc-one', (req, res) => {
-  const exp = req.query.expr;
-  // ⚠️ Code Injection vulnerability
-  try {
-    const result = eval(exp);
-    res.send(`Result: ${result}`);
-  } catch (error) {
-    res.send('Error in expression');
-  }
-});
 
 app.get('/user', (req, res) => {
   const userId = req.query.id;
@@ -96,19 +85,6 @@ app.get('/search', (req, res) => {
   const searchTerm = req.query.q;
   // ⚠️ Reflected XSS vulnerability
   res.send(`<h1>Search Results for: ${searchTerm}</h1>`);
-});
-
-app.get('/new-search', (req, res) => {
-  const newSearchTerm = req.query.q;
-  // ⚠️ Reflected XSS vulnerability
-  res.send(`<h1>New Search Results for: ${newSearchTerm}</h1>`);
-});
-
-
-app.get('/b1-branch-search', (req, res) => {
-  const b1SearchTerm = req.query.q;
-  // ⚠️ Reflected XSS vulnerability
-  res.send(`<h1>New Search Results for: ${b1SearchTerm}</h1>`);
 });
 
 app.get('/api/hello', (req, res) => {
